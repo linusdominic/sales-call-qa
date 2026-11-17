@@ -8,15 +8,27 @@ is a public licence identifier and is left alone: the script requires it to be s
 
 import re
 
+from callqa.audio import Segment
+
 # Digits spoken one at a time come out of speech recognition in many shapes: "555-0142",
-# "5 5 5 0 1 4 2", "912, 44, 5537". This matches a run of digits with light punctuation.
-_DIGIT_RUN = re.compile(r"(?<![\w$.])\d(?:[\s,.\-]{0,2}\d){6,}(?![\w%])")
+# "5 5 5 0 1 4 2", "912, 44, 5537", "9-1-2. 4/4, 5/5". This matches a run of digits with
+# light punctuation between them.
+_DIGIT_RUN = re.compile(r"(?<![\w$.])\d(?:[\s,.\-/]{0,2}\d){6,}(?![\w%])")
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _SPOKEN_EMAIL = re.compile(
     r"\b[\w.]+(?: dot [\w.]+)* at [\w-]+ dot (?:com|org|net)\b", re.IGNORECASE
 )
 _MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
-_DATE = re.compile(rf"\b(?:{_MONTHS})\.? \d{{1,2}}(?:st|nd|rd|th)?,? (?:19|20)\d{{2}}\b")
+_DAY = r"\d{1,2}(?:st|nd|rd|th)?"
+_YEAR = r"(?:19|20)\d{2}"
+_DATE = re.compile(
+    rf"\b(?:(?:{_MONTHS})\.? {_DAY}[.,]? {_YEAR}|(?:the )?{_DAY} of (?:{_MONTHS}),? {_YEAR})\b"
+)
+# When the words before it say what it is, a bare year is enough to mask. This covers a
+# month and day that speech recognition has garbled beyond what a date pattern can match.
+_BIRTH_YEAR = re.compile(
+    rf"(\b(?:date of birth|birth ?date|birthday|born)\b.{{0,40}}?)\b{_YEAR}\b", re.I
+)
 
 
 def _digit_label(match: re.Match[str]) -> str:
@@ -45,8 +57,16 @@ def redact(text: str) -> tuple[str, dict[str, int]]:
     swap(_EMAIL, "[EMAIL]")
     swap(_SPOKEN_EMAIL, "[EMAIL]")
     swap(_DATE, "[DATE]")
+    text, years = _BIRTH_YEAR.subn(r"\1[DATE]", text)
+    if years:
+        counts["[DATE]"] = counts.get("[DATE]", 0) + years
     swap(_DIGIT_RUN, _digit_label)
     return text, counts
+
+
+def mask(segments: list[Segment]) -> list[Segment]:
+    """A transcript with the personal details in every line masked."""
+    return [Segment(s.speaker, s.start, s.end, redact(s.text)[0]) for s in segments]
 
 
 def leaked(kind: str, value: str, text: str) -> bool:

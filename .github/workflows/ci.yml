@@ -18,6 +18,9 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -v
       # The committed calls must be exactly what the generator produces from its seed.
-      - run: uv run callqa generate && git diff --exit-code data/calls.jsonl
+      - run: |
+          uv run callqa --set dev generate
+          uv run callqa --set heldout generate
+          git diff --exit-code data
       # The committed transcripts and scorecards must still produce the committed report.
       - run: uv run callqa evaluate | diff - results/report.md

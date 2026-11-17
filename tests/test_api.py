@@ -82,7 +82,7 @@ def test_call_detail_has_scorecard_transcript_and_truth(client, calls):
     assert [s["id"] for s in detail["steps"]] == list(call.steps)
     covered = [s for s in detail["steps"] if s["verdict"] == "covered"]
     assert all(s["quote"] and s["verified"] for s in covered)
-    assert [f["id"] for f in detail["flag_details"]] == call.flags
+    assert sorted(f["id"] for f in detail["flag_details"]) == sorted(call.flags)
     assert len(detail["transcript"]) == len(call.turns)
     assert detail["truth"]["flags"] == call.flags
     assert client.get("/api/calls/nope").status_code == 404

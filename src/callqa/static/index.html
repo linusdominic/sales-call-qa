@@ -234,9 +234,14 @@ async function openCall(id) {
     '<div class="cols"><div><h2>Scorecard</h2>' + steps + (flags ? '<h2 style="margin-top:14px">Compliance flags</h2>' + flags : "") +
     '</div><div><h2>Transcript</h2><p class="note">Personal details are masked before grading.</p>' + lines + "</div></div>";
   $("detail").style.display = $("shade").style.display = "block";
+  history.replaceState(null, "", "#" + id);  // so a call can be linked to
 }
 
-function closeCall() { $("detail").style.display = $("shade").style.display = "none"; $("detail").innerHTML = ""; }
+function closeCall() {
+  $("detail").style.display = $("shade").style.display = "none";
+  $("detail").innerHTML = "";
+  history.replaceState(null, "", location.pathname);
+}
 
 function pressed(group, button) {
   for (const b of group.querySelectorAll("button")) b.setAttribute("aria-pressed", b === button);
@@ -271,7 +276,9 @@ document.addEventListener("mousemove", (e) => {
   tip.style.left = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8) + "px";
   tip.style.top = e.clientY + 14 + "px";
 });
-refresh().catch(() => { $("subtitle").textContent = "Could not load the data. Run `callqa grade` first."; });
+refresh()
+  .then(() => { if (/^#call_\d+$/.test(location.hash)) return openCall(location.hash.slice(1)); })
+  .catch(() => { $("subtitle").textContent = "Could not load the data. Run `callqa grade` first."; });
 </script>
 </body>
 </html>

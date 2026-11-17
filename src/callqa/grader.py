@@ -1,16 +1,17 @@
 """Grade one call against the script, and check the grade before trusting it.
 
 The model reads the transcript and returns a structured verdict: the call's outcome, each
-script step as covered or missing, any compliance flags, and for every claim the line and
-the exact words that support it. Code then verifies that those words are really in the
-transcript, works out the business figures, and decides whether a person should look.
+script step as covered or missing, each compliance flag as raised or clear, and for every
+positive claim the line and the exact words that support it. Code then verifies that those
+words are really in the transcript, works out the business figures, and decides whether a
+person should look.
 """
 
 import re
 from dataclasses import asdict, dataclass, field
 
 from callqa.audio import Segment
-from callqa.llm import LLM
+from callqa.llm import LLM, ModelRefused
 from callqa.rubric import Rubric
 
 SYSTEM = """\
@@ -29,18 +30,22 @@ Decide three things.
 said. If the outcome is not "conversation", mark every step "not_applicable".
 {steps}
 
-3. COMPLIANCE FLAGS. List a flag only when the AGENT did what it describes. Nothing the \
-CUSTOMER says raises a flag.
+3. COMPLIANCE FLAGS. Give a verdict for every flag below: "raised" only when the AGENT did \
+exactly what it describes, otherwise "clear". An AGENT who refuses to do it, does the \
+opposite, or only touches the same topic is "clear". Nothing the CUSTOMER says raises a flag.
 {flags}
 
-Evidence: for every covered step and every flag, give the line number and a short exact \
-quote copied from that AGENT line. For a missing or not applicable step use line -1 and an \
-empty quote.
+Evidence: for every covered step and every raised flag, give the line number and a short \
+exact quote copied from that AGENT line. For anything else use line -1 and an empty quote.
 
-Confidence: "high" unless the transcript is garbled or a judgement was a close call. Finish \
-with a one-sentence summary of the call for a sales manager."""
+Confidence: "high" when every verdict follows plainly from the transcript. Use "medium" or \
+"low" only when a specific verdict could reasonably have gone the other way. Recognition \
+errors that do not change any verdict are not a reason to lower it. Finish with a \
+one-sentence summary of the call for a sales manager."""
 
 VERDICTS = ("covered", "missing", "not_applicable")
+FLAG_VERDICTS = ("raised", "clear")
+MAX_TOKENS = (6000, 16000)  # the second is used only if the first runs out
 
 
 def system_prompt(rubric: Rubric, campaign: str) -> str:
@@ -80,9 +85,10 @@ def schema(rubric: Rubric, campaign: str) -> dict:
                     "type": "object",
                     "properties": {
                         "id": {"type": "string", "enum": [f.id for f in rubric.flags]},
+                        "verdict": {"type": "string", "enum": list(FLAG_VERDICTS)},
                         **evidence,
                     },
-                    "required": ["id", "line", "quote"],
+                    "required": ["id", "verdict", "line", "quote"],
                     "additionalProperties": False,
                 },
             },
@@ -188,8 +194,9 @@ def finalize(
 
     flags = []
     for item in raw["flags"]:
-        line = locate(item["quote"], item["line"], segments)
-        flags.append(Evidence(item["id"], line, item["quote"], line is not None))
+        if item["verdict"] == "raised":
+            line = locate(item["quote"], item["line"], segments)
+            flags.append(Evidence(item["id"], line, item["quote"], line is not None))
 
     covered = {step for step, verdict in steps.items() if verdict == "covered"}
     review = []
@@ -218,13 +225,19 @@ def finalize(
 async def grade(
     llm: LLM, model: str, rubric: Rubric, call_id: str, campaign: str, segments: list[Segment]
 ) -> Scorecard:
-    result = await llm.complete(
-        model=model,
-        system=system_prompt(rubric, campaign),
-        prompt=f"Campaign: {campaign} call\n\nTranscript:\n{render(segments)}",
-        schema=schema(rubric, campaign),
-        max_tokens=4000,
-    )
+    for attempt, limit in enumerate(MAX_TOKENS):
+        try:
+            result = await llm.complete(
+                model=model,
+                system=system_prompt(rubric, campaign),
+                prompt=f"Campaign: {campaign} call\n\nTranscript:\n{render(segments)}",
+                schema=schema(rubric, campaign),
+                max_tokens=limit,
+            )
+            break
+        except ModelRefused:  # the model's reasoning used up the output limit
+            if attempt == len(MAX_TOKENS) - 1:
+                raise
     card = finalize(result.json(), call_id, campaign, segments, rubric)
     card.model, card.cost_usd, card.latency_s = model, result.cost_usd, round(result.latency_s, 2)
     return card

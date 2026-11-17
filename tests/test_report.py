@@ -4,7 +4,7 @@ from conftest import masked_segments
 
 from callqa import audio, report, store
 from callqa.grader import Evidence
-from callqa.redact import redact
+from callqa.synth import Turn
 
 
 def test_words_drop_numbers_however_they_are_written():
@@ -79,24 +79,15 @@ def test_each_kind_of_mistake_is_counted(calls, cards, rubric):
     assert "graded not meaningful, was" in run.wrong[was.call_id]
 
 
-def write_run(root, calls, cards, source="asr", garble=False):
-    store.write(root / "data" / "calls.jsonl", [call.to_json() for call in calls])
-    rows = []
-    for call in calls:
-        heard = audio.reference_segments(call)
-        if garble:
-            heard = [audio.Segment(s.speaker, s.start, s.end, s.text.lower()) for s in heard]
-        masked = [audio.Segment(s.speaker, s.start, s.end, redact(s.text)[0]) for s in heard]
-        rows.append(
-            {
-                "call_id": call.call_id,
-                "segments": audio.to_json(heard),
-                "masked": audio.to_json(masked),
-                "masked_counts": {},
-            }
-        )
-    store.write(root / "data" / "transcripts.jsonl", rows)
-    path = root / "results" / f"scorecards.{source}.haiku-5-5.jsonl"
+def write_run(root, calls, cards, source="asr", name="heldout", folder=""):
+    paths = store.Paths(name, root)
+    store.write(paths.calls, [call.to_json() for call in calls])
+    rows = [
+        {"call_id": call.call_id, "segments": audio.to_json(audio.reference_segments(call))}
+        for call in calls
+    ]
+    store.write(paths.transcripts, rows)
+    path = paths.results / folder / f"scorecards.{source}.haiku-5-5.jsonl"
     store.write(path, [card.to_json() for card in cards])
 
 
@@ -106,8 +97,8 @@ def test_render_reports_a_perfect_run(tmp_path, calls, cards):
     assert f"{len(calls)} synthetic calls by 8 loan officers" in text
     assert "| Word error rate, numbers excluded | 0.0% (0 errors in" in text
     assert f"| Calls whose speaker order matches the original | 100.0% ({len(calls)}/" in text
-    assert "## In detail: claude-haiku-5-5, Whisper transcript" in text
-    assert "### Every call the grader got wrong\n\nNone." in text
+    assert "### In detail: claude-haiku-5-5, Whisper transcript" in text
+    assert "#### Every call the grader got wrong\n\nNone." in text
     assert "Largest gap in any officer's meaningful-call count: 0." in text
     assert report.render(tmp_path) == text  # the same files always give the same report
 
@@ -119,12 +110,23 @@ def test_render_prefers_the_speech_run_and_lists_both(tmp_path, calls, cards):
     assert text.index("| claude-haiku-5-5, Whisper transcript |") < text.index(
         "| claude-haiku-5-5, original text |"
     )
-    assert "## In detail: claude-haiku-5-5, Whisper transcript" in text
+    assert "### In detail: claude-haiku-5-5, Whisper transcript" in text
 
 
 def test_render_without_grades_says_so(tmp_path, calls):
-    store.write(tmp_path / "data" / "calls.jsonl", [call.to_json() for call in calls])
+    store.write(store.Paths("heldout", tmp_path).calls, [call.to_json() for call in calls])
     assert "No grading runs yet" in report.render(tmp_path)
+
+
+def test_render_covers_both_sets_and_keeps_the_first_version(tmp_path, calls, cards):
+    write_run(tmp_path, calls, cards, name="heldout")
+    write_run(tmp_path, calls, cards, name="dev")
+    write_run(tmp_path, calls, cards, name="dev", folder="first-version")
+    text = report.render(tmp_path)
+    assert text.index("## Held-out set") < text.index("## Development set")
+    assert "| First version: claude-haiku-5-5, Whisper transcript |" in text
+    held_out = text[: text.index("## Development set")]
+    assert "First version" not in held_out
 
 
 def test_masking_table_counts_every_planted_detail(tmp_path, calls, cards):
@@ -137,3 +139,15 @@ def test_masking_table_counts_every_planted_detail(tmp_path, calls, cards):
         == f"| All | {planted} | 100.0% ({planted}/{planted}) | 100.0% ({planted}/{planted}) |"
     )
     assert masked_segments(calls[0])  # the helper the table is checked against
+
+
+def test_trap_table_ignores_calls_that_also_contain_the_real_rule_break(calls, cards, rubric):
+    """A correct grader raises the flag on such a call, and that is not a failed trap."""
+    label = "Officer declines to guarantee approval (must not raise guaranteed_approval)"
+    calls = copy.deepcopy(calls)
+    broke_it = next(call for call in calls if "guaranteed_approval" in call.flags)
+    broke_it.turns.append(Turn("agent", report.TRAP_LINES[label][2]))
+
+    run = report.compare("clean", "claude-haiku-5-5", cards, calls, rubric)
+    row = next(line for line in report.detail_section(run, calls, rubric) if label in line)
+    assert "100.0%" in row

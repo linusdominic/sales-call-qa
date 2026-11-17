@@ -13,7 +13,7 @@ from statistics import median
 
 from callqa import audio, store
 from callqa.grader import Scorecard
-from callqa.redact import leaked, redact
+from callqa.redact import leaked, mask, redact
 from callqa.rubric import Rubric
 from callqa.synth import SKIPPED, TRAPS, Call
 
@@ -136,6 +136,7 @@ class Run:
     source: str
     model: str
     cards: dict[str, Scorecard]
+    label: str = ""  # set for runs kept from an earlier version of the grader
     calls: int = 0
     outcome_ok: int = 0
     confusions: dict[tuple[str, str], int] = field(default_factory=dict)
@@ -153,7 +154,7 @@ class Run:
     @property
     def name(self) -> str:
         source = "Whisper transcript" if self.source == "asr" else "original text"
-        return f"{self.model}, {source}"
+        return f"{self.label}{self.model}, {source}"
 
     @property
     def cost(self) -> float:
@@ -221,12 +222,14 @@ def compare(source: str, model: str, cards: list[Scorecard], calls: list[Call], 
     return run
 
 
-def load_runs(calls: list[Call], rubric: Rubric, results: Path = store.RESULTS) -> list[Run]:
+def load_runs(calls: list[Call], rubric: Rubric, results: Path, label: str = "") -> list[Run]:
     runs = []
     for path in sorted(results.glob("scorecards.*.jsonl")):
         _, source, model = path.stem.split(".", 2)
         cards = [Scorecard.from_json(row) for row in store.read(path)]
-        runs.append(compare(source, f"claude-{model}", cards, calls, rubric))
+        run = compare(source, f"claude-{model}", cards, calls, rubric)
+        run.label = label
+        runs.append(run)
     # The run that matters first: the real pipeline (speech recognition), cheapest model.
     return sorted(runs, key=lambda run: (run.source != "asr", "haiku" not in run.model, run.model))
 
@@ -252,7 +255,7 @@ def transcription_section(calls: list[Call], transcripts: dict[str, dict]) -> li
         )
     done = sum(call.call_id in transcripts for call in calls)
     return [
-        "## Transcription",
+        "### Transcription",
         "",
         f"{done} two-channel recordings, {seconds / 60:.0f} minutes of audio, transcribed with "
         "whisper.cpp `base.en` one channel at a time.",
@@ -274,14 +277,14 @@ def masking_section(calls: list[Call], transcripts: dict[str, dict]) -> list[str
         row = transcripts.get(call.call_id)
         if row is None:
             continue
-        masked_asr = " ".join(segment["text"] for segment in row["masked"])
+        masked_asr = " ".join(s.text for s in mask(audio.from_json(row["segments"])))
         masked_clean = " ".join(redact(turn.text)[0] for turn in call.turns)
         for item in call.personal:
             tally[item["kind"]]["planted"] += 1
             tally[item["kind"]]["asr"] += not leaked(item["kind"], item["value"], masked_asr)
             tally[item["kind"]]["clean"] += not leaked(item["kind"], item["value"], masked_clean)
     lines = [
-        "## Masking of personal details",
+        "### Masking of personal details",
         "",
         "Details the contacts say aloud, and how many were unreadable after masking.",
         "",
@@ -304,10 +307,10 @@ def masking_section(calls: list[Call], transcripts: dict[str, dict]) -> list[str
 
 def grading_section(runs: list[Run]) -> list[str]:
     lines = [
-        "## Grading against the true labels",
+        "### Grading against the true labels",
         "",
         "| Run | Outcome | Meaningful: precision | Meaningful: recall | Script steps "
-        "| Flags: precision | Flags: recall | Calls with no error | Cost | Median time |",
+        "| Flags: precision | Flags: recall | Calls with no error | Sent for review | Cost |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for run in runs:
@@ -318,7 +321,7 @@ def grading_section(runs: list[Run]) -> list[str]:
             f"| {pct(run.step_ok, run.step_total)} "
             f"| {pct(f['tp'], f['tp'] + f['fp'])} | {pct(f['tp'], f['tp'] + f['fn'])} "
             f"| {pct(run.calls - len(run.wrong), run.calls)} "
-            f"| ${run.cost:.2f} | {median(run.latencies):.1f} s |"
+            f"| {pct(len(run.queued), run.calls)} | ${run.cost:.2f} |"
         )
     lines += [
         "",
@@ -333,7 +336,7 @@ def detail_section(run: Run, calls: list[Call], rubric: Rubric) -> list[str]:
     by_id = {call.call_id: call for call in calls}
     m = run.meaningful
     lines = [
-        f"## In detail: {run.name}",
+        f"### In detail: {run.name}",
         "",
         f"- Outcome: {pct_ci(run.outcome_ok, run.calls)}.",
         f"- Meaningful or not: {pct_ci(m['tp'] + m['tn'], run.calls)}. "
@@ -345,7 +348,7 @@ def detail_section(run: Run, calls: list[Call], rubric: Rubric) -> list[str]:
         f"1,000 calls. Time per call: median {median(run.latencies):.1f} s, "
         f"slowest {run.latencies[-1]:.1f} s.",
         "",
-        "### By script step",
+        "#### By script step",
         "",
         "| Step | Decisions | Correct | Graded covered, was missing "
         "| Graded missing, was covered |",
@@ -359,7 +362,7 @@ def detail_section(run: Run, calls: list[Call], rubric: Rubric) -> list[str]:
                 f"| {t['false_covered']} | {t['false_miss']} |"
             )
 
-    lines += ["", "### Trap lines", "", "| Trap | Calls | Handled correctly |", "|---|---|---|"]
+    lines += ["", "#### Trap lines", "", "| Trap | Calls | Handled correctly |", "|---|---|---|"]
     for label, (kind, target, text) in TRAP_LINES.items():
         marker = text.split("{")[0]
         hit = [
@@ -367,6 +370,8 @@ def detail_section(run: Run, calls: list[Call], rubric: Rubric) -> list[str]:
             for call in calls
             if call.call_id in run.cards
             and any(turn.speaker == "agent" and marker in turn.text for turn in call.turns)
+            # A call that also contains the real rule break says nothing about the trap.
+            and not (kind == "flag" and target in call.flags)
         ]
         if kind == "flag":
             good = sum(target not in {f.id for f in run.cards[c].flags} for c in hit)
@@ -378,7 +383,7 @@ def detail_section(run: Run, calls: list[Call], rubric: Rubric) -> list[str]:
     deserved = wrong | run.true_flag_calls
     lines += [
         "",
-        "### Review queue",
+        "#### Review queue",
         "",
         "A call goes to a person when it has a compliance flag, the model was not confident, or "
         "a quote could not be found in the transcript.",
@@ -391,7 +396,7 @@ def detail_section(run: Run, calls: list[Call], rubric: Rubric) -> list[str]:
         f"- Calls with a real rule break: {len(run.true_flag_calls)}. In the queue: "
         f"{pct(len(run.true_flag_calls & queued), len(run.true_flag_calls))}.",
         "",
-        "### What the dashboard shows per loan officer, against the truth",
+        "#### What the dashboard shows per loan officer, against the truth",
         "",
         "| Loan officer | Calls | Meaningful: true | graded | Script adherence: true | graded "
         "| Flags: true | graded |",
@@ -417,7 +422,7 @@ def detail_section(run: Run, calls: list[Call], rubric: Rubric) -> list[str]:
         "",
         f"Largest gap in any officer's meaningful-call count: {worst}.",
         "",
-        "### Every call the grader got wrong",
+        "#### Every call the grader got wrong",
         "",
     ]
     if not run.wrong:
@@ -432,13 +437,15 @@ def detail_section(run: Run, calls: list[Call], rubric: Rubric) -> list[str]:
     return [*lines, ""]
 
 
-def render(root: Path = store.ROOT) -> str:
-    rubric = Rubric.load()
-    calls = [Call.from_json(row) for row in store.read(root / "data" / "calls.jsonl")]
-    transcript_path = root / "data" / "transcripts.jsonl"
-    rows = store.read(transcript_path) if transcript_path.exists() else []
+def set_section(paths: store.Paths, title: str, rubric: Rubric, detail: bool) -> list[str]:
+    """Everything measured on one set of calls."""
+    if not paths.calls.exists():
+        return []
+    calls = [Call.from_json(row) for row in store.read(paths.calls)]
+    rows = store.read(paths.transcripts) if paths.transcripts.exists() else []
     transcripts = {row["call_id"]: row for row in rows}
-    runs = load_runs(calls, rubric, root / "results")
+    runs = load_runs(calls, rubric, paths.results)
+    earlier = load_runs(calls, rubric, paths.results / "first-version", "First version: ")
 
     outcomes: dict[str, int] = {}
     for call in calls:
@@ -446,11 +453,7 @@ def render(root: Path = store.ROOT) -> str:
     truths = [truth_for(call, rubric) for call in calls]
     mix = ", ".join(f"{count} {name}" for name, count in sorted(outcomes.items()))
     lines = [
-        "# Evaluation report",
-        "",
-        "Built by `callqa evaluate` from the files in `data/` and `results/`. No model is called.",
-        "",
-        "## The calls",
+        f"## {title}",
         "",
         f"{len(calls)} synthetic calls by {len({call.officer for call in calls})} loan officers: "
         f"{mix}. By the rule in `config/script.yml`, "
@@ -461,9 +464,27 @@ def render(root: Path = store.ROOT) -> str:
     if transcripts:
         lines += transcription_section(calls, transcripts)
         lines += masking_section(calls, transcripts)
-    if runs:
-        lines += grading_section(runs)
-        lines += detail_section(runs[0], calls, rubric)
+    if runs or earlier:
+        lines += grading_section([*runs, *earlier])
     else:
         lines += ["No grading runs yet. Run `callqa grade`.", ""]
+    if runs and detail:
+        lines += detail_section(runs[0], calls, rubric)
+    return lines
+
+
+def render(root: Path = store.ROOT) -> str:
+    rubric = Rubric.load()
+    lines = [
+        "# Evaluation report",
+        "",
+        "Built by `callqa evaluate` from the files in `data/` and `results/`. No model is called.",
+        "",
+        "The held-out set was generated after the grader's prompt and the masking rules were "
+        "frozen. The development set is the one they were worked out on, so its figures for "
+        "the current version are optimistic.",
+        "",
+    ]
+    lines += set_section(store.Paths("heldout", root), "Held-out set", rubric, detail=True)
+    lines += set_section(store.Paths("dev", root), "Development set", rubric, detail=True)
     return "\n".join(lines).rstrip()

@@ -15,6 +15,10 @@ from callqa.redact import leaked, redact
         ("Email jordan.rivera@example.com please", "Email [EMAIL] please"),
         ("jordan dot rivera at example dot com", "[EMAIL]"),
         ("My date of birth is March 14, 1966.", "My date of birth is [DATE]."),
+        ("My date of birth is the 11th of March, 1984.", "My date of birth is [DATE]."),
+        ("My date of birth is March 10th. 1974", "My date of birth is [DATE]"),
+        ("My date of birth is Marjativ. 1994", "My date of birth is Marjativ. [DATE]"),
+        ("It's 9-1-2. 4/4, 5/5, 3/8", "It's [SSN]"),
     ],
 )
 def test_masks_personal_details(text, expected):
@@ -29,6 +33,7 @@ def test_masks_personal_details(text, expected):
         "My rate is 7.1% and I owe about 300,000.",
         "Does Thursday at 10 work?",
         "Last I checked it was around 720.",
+        "We bought the house in 1998 and refinanced in 2019.",
     ],
 )
 def test_leaves_business_numbers_alone(text):

@@ -1,23 +1,49 @@
-"""Where each stage keeps its output. Every stage reads the previous one's file."""
+"""Where each stage keeps its output. Every stage reads the previous one's file.
+
+There are two sets of calls, built the same way from different seeds. The development set
+is the one the grader's prompt and the masking rules were worked out on. The held-out set
+was generated after those were frozen, and its results are the ones to quote.
+"""
 
 import json
+import os
+from dataclasses import dataclass
 from pathlib import Path
 
 from callqa.rubric import ROOT
 
-DATA = ROOT / "data"
-RESULTS = ROOT / "results"
-AUDIO = DATA / "audio"  # not committed: regenerate with `callqa synthesize`
+SEEDS = {"dev": 11, "heldout": 23}
+DEFAULT_SET = os.environ.get("CALLQA_SET", "heldout")
 MODEL = ROOT / "models" / "ggml-base.en.bin"
-
-CALLS = DATA / "calls.jsonl"  # the synthetic calls and their true labels
-TRANSCRIPTS = DATA / "transcripts.jsonl"  # speech-recognition output, raw and masked
-SPEND = RESULTS / "spend.json"
+SPEND = ROOT / "results" / "spend.json"
 
 
-def scorecards_path(source: str, model: str) -> Path:
-    """One file per grading run, named for the transcript source and the model."""
-    return RESULTS / f"scorecards.{source}.{model.removeprefix('claude-')}.jsonl"
+@dataclass(frozen=True)
+class Paths:
+    """The files of one set of calls."""
+
+    name: str
+    root: Path = ROOT
+
+    @property
+    def calls(self) -> Path:  # the synthetic calls and their true labels
+        return self.root / "data" / self.name / "calls.jsonl"
+
+    @property
+    def transcripts(self) -> Path:  # speech-recognition output, before masking
+        return self.root / "data" / self.name / "transcripts.jsonl"
+
+    @property
+    def audio(self) -> Path:  # not committed: regenerate with `callqa synthesize`
+        return self.root / "data" / self.name / "audio"
+
+    @property
+    def results(self) -> Path:
+        return self.root / "results" / self.name
+
+    def scorecards(self, source: str, model: str) -> Path:
+        """One file per grading run, named for the transcript source and the model."""
+        return self.results / f"scorecards.{source}.{model.removeprefix('claude-')}.jsonl"
 
 
 def read(path: Path) -> list[dict]:

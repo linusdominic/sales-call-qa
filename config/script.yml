@@ -45,7 +45,10 @@ steps:
     campaigns: [warm]
   - id: qualify_goal
     label: Asks about the loan goal
-    description: The loan officer asks what the contact wants, such as a purchase, a refinance or cash out.
+    description: >-
+      The loan officer asks the contact what they want, such as a purchase, a refinance or
+      cash out. Saying why they are calling does not count, even when it mentions
+      refinancing or buying.
     campaigns: [cold, warm]
   - id: qualify_property
     label: Asks about the property or current loan
@@ -83,7 +86,8 @@ flags:
     label: High-pressure tactic
     description: >-
       The loan officer demands an immediate decision or threatens that the offer or their
-      help will be withdrawn if the contact does not commit on this call.
+      help will be withdrawn if the contact does not commit on this call. Proposing a time
+      for a next step, or inviting the contact to think it over, is not pressure.
 
 # A call is meaningful when it was a real conversation in which the loan officer said why
 # they were calling and asked at least two of the three qualifying questions.

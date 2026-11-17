@@ -12,8 +12,9 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from callqa import store
+from callqa import audio, store
 from callqa.grader import Scorecard
+from callqa.redact import mask
 from callqa.rubric import Rubric
 from callqa.synth import Call
 
@@ -31,39 +32,34 @@ class Dataset:
     audio: Path
 
     @classmethod
-    def load(cls, root: Path = store.ROOT) -> "Dataset":
-        results = root / "results"
+    def load(cls, paths: store.Paths | None = None) -> "Dataset":
+        paths = paths or store.Paths(os.environ.get("CALLQA_SET", store.DEFAULT_SET))
         wanted = os.environ.get("CALLQA_RUN")  # for example "clean.haiku-5-5"
-        paths = sorted(results.glob("scorecards.*.jsonl"), key=lambda p: ".asr." not in p.name)
+        found = sorted(
+            paths.results.glob("scorecards.*.jsonl"),
+            key=lambda p: (".asr." not in p.name, "haiku" not in p.name, p.name),
+        )
         if wanted:
-            paths = [results / f"scorecards.{wanted}.jsonl"]
-        if not paths or not paths[0].exists():
-            raise FileNotFoundError("No scorecards found. Run `callqa grade` first.")
-        _, source, model = paths[0].stem.split(".", 2)
-        calls = [Call.from_json(row) for row in store.read(root / "data" / "calls.jsonl")]
-        cards = [Scorecard.from_json(row) for row in store.read(paths[0])]
+            found = [paths.results / f"scorecards.{wanted}.jsonl"]
+        if not found or not found[0].exists():
+            raise FileNotFoundError(f"No scorecards in {paths.results}. Run `callqa grade`.")
+        _, source, model = found[0].stem.split(".", 2)
+        calls = [Call.from_json(row) for row in store.read(paths.calls)]
+        cards = [Scorecard.from_json(row) for row in store.read(found[0])]
         if source == "asr":
-            rows = store.read(root / "data" / "transcripts.jsonl")
-            transcripts = {row["call_id"]: row["masked"] for row in rows}
-        else:
-            from callqa import audio
-            from callqa.redact import redact
-
-            transcripts = {
-                call.call_id: [
-                    {**line, "text": redact(line["text"])[0]}
-                    for line in audio.to_json(audio.reference_segments(call))
-                ]
-                for call in calls
+            heard = {
+                r["call_id"]: audio.from_json(r["segments"]) for r in store.read(paths.transcripts)
             }
+        else:
+            heard = {call.call_id: audio.reference_segments(call) for call in calls}
         return cls(
             rubric=Rubric.load(),
             calls={call.call_id: call for call in calls},
             cards={card.call_id: card for card in cards},
-            transcripts=transcripts,
+            transcripts={call_id: audio.to_json(mask(lines)) for call_id, lines in heard.items()},
             source=source,
             model=f"claude-{model}",
-            audio=root / "data" / "audio",
+            audio=paths.audio,
         )
 
     def select(self, campaign: str = "all", officer: str = "") -> list[Scorecard]:

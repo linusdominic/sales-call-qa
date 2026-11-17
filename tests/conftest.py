@@ -4,7 +4,7 @@ import pytest
 
 from callqa import audio
 from callqa.grader import Scorecard, finalize
-from callqa.redact import redact
+from callqa.redact import mask
 from callqa.rubric import Rubric
 from callqa.synth import Call, generate
 
@@ -20,10 +20,7 @@ def calls() -> list[Call]:
 
 
 def masked_segments(call: Call) -> list[audio.Segment]:
-    return [
-        audio.Segment(s.speaker, s.start, s.end, redact(s.text)[0])
-        for s in audio.reference_segments(call)
-    ]
+    return mask(audio.reference_segments(call))
 
 
 def perfect_verdict(call: Call, rubric: Rubric) -> dict:
@@ -45,7 +42,12 @@ def perfect_verdict(call: Call, rubric: Rubric) -> dict:
             }
             for step in rubric.steps_for(call.campaign)
         ],
-        "flags": [{"id": flag, "line": agent_line, "quote": quote} for flag in call.flags],
+        "flags": [
+            {"id": flag.id, "verdict": "raised", "line": agent_line, "quote": quote}
+            if flag.id in call.flags
+            else {"id": flag.id, "verdict": "clear", "line": -1, "quote": ""}
+            for flag in rubric.flags
+        ],
         "confidence": "high",
         "summary": "A call.",
     }

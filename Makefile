@@ -8,26 +8,29 @@ model: ## the speech model, about 150 MB, into models/
 	curl -L --fail -o models/ggml-base.en.bin \
 		https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
 
-calls: ## free: rebuild the 160 synthetic calls and their true labels
-	uv run callqa generate
+SET ?= heldout
 
-audio: ## free, macOS only: speak every call into a two-channel recording
-	uv run callqa synthesize
+calls: ## free: rebuild both sets of 160 synthetic calls and their true labels
+	uv run callqa --set dev generate
+	uv run callqa --set heldout generate
 
-transcripts: ## free, needs whisper-cli and the model: transcribe and mask every recording
-	uv run callqa transcribe
+audio: ## free, macOS only: speak every call into a two-channel recording (SET=dev for the other set)
+	uv run callqa --set $(SET) synthesize
 
-grade: ## paid: grade the masked speech-recognition transcripts
-	uv run callqa grade --source asr
+transcripts: ## free, needs whisper-cli and the model: transcribe every recording
+	uv run callqa --set $(SET) transcribe
+
+grade: ## paid, about 10 cents: mask and grade the speech-recognition transcripts
+	uv run callqa --set $(SET) grade --source asr
 
 grade-clean: ## paid: grade the original text, to see what speech recognition costs
-	uv run callqa grade --source clean
+	uv run callqa --set $(SET) grade --source clean
 
 report: ## free: rebuild results/report.md from the saved files
 	uv run callqa evaluate --write
 
 serve: ## the dashboard on http://localhost:8020
-	uv run callqa serve
+	uv run callqa --set $(SET) serve
 
 test: ## no audio, network or API key needed
 	uv run pytest
