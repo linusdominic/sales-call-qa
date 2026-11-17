@@ -1,0 +1,12 @@
+{
+  "total_usd": 0.159085,
+  "calls": 320,
+  "by_model": {
+    "claude-haiku-5-5": {
+      "calls": 320,
+      "input_tokens": 708950,
+      "output_tokens": 176377,
+      "usd": 0.159085
+    }
+  }
+}

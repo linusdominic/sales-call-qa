@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -v
+      # The committed calls must be exactly what the generator produces from its seed.
+      - run: uv run callqa generate && git diff --exit-code data/calls.jsonl
+      # The committed transcripts and scorecards must still produce the committed report.
+      - run: uv run callqa evaluate | diff - results/report.md

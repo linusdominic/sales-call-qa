@@ -1,0 +1,95 @@
+# The call script, as a rubric. This is what every outreach call is graded against.
+#
+# A step is "covered" only by something the loan officer says. A flag is raised only by
+# something the loan officer says. Whether a call counts as meaningful is decided by the
+# rule at the bottom, in code, from the graded steps. The model does not decide it.
+
+company: Harbor Home Lending
+
+outcomes:
+  conversation: The intended person answered and talked with the loan officer about a loan.
+  voicemail: Nobody answered and the loan officer reached a voicemail greeting.
+  wrong_number: The person who answered is not the intended contact.
+  declined_early: >-
+    The contact refused or asked not to be called before any discussion of their situation.
+  callback_requested: The contact could not talk and asked to be called at another time.
+
+steps:
+  - id: greeting_identify
+    label: Identifies self and company
+    description: The loan officer states their own name and the company name.
+    campaigns: [cold, warm]
+  - id: recording_disclosure
+    label: Recording disclosure
+    description: The loan officer tells the contact that the call is recorded.
+    campaigns: [cold, warm]
+  - id: nmls_id
+    label: States NMLS ID
+    description: >-
+      The loan officer states their NMLS number. Saying only that they are licensed, with
+      no number, does not count.
+    campaigns: [cold, warm]
+  - id: purpose
+    label: States the purpose of the call
+    description: >-
+      The loan officer says why they are calling: home loan options for a cold call, or a
+      follow-up on the contact's own inquiry for a warm call.
+    campaigns: [cold, warm]
+  - id: permission
+    label: Asks if it is a good time
+    description: The loan officer asks whether the contact has time to talk now.
+    campaigns: [cold]
+  - id: confirm_inquiry
+    label: Confirms the inquiry details
+    description: The loan officer confirms a detail of the inquiry, such as the property's state.
+    campaigns: [warm]
+  - id: qualify_goal
+    label: Asks about the loan goal
+    description: The loan officer asks what the contact wants, such as a purchase, a refinance or cash out.
+    campaigns: [cold, warm]
+  - id: qualify_property
+    label: Asks about the property or current loan
+    description: >-
+      The loan officer asks about home value, price range, or the current mortgage's rate
+      or balance.
+    campaigns: [cold, warm]
+  - id: qualify_credit
+    label: Asks about credit or income
+    description: The loan officer asks about credit standing, employment or income.
+    campaigns: [cold, warm]
+  - id: next_step
+    label: Secures a next step
+    description: >-
+      The loan officer proposes a specific next step: a scheduled call, an application link,
+      or a callback at a stated time. "Reach out if you want" does not count.
+    campaigns: [cold, warm]
+  - id: closing
+    label: Closes with a callback number
+    description: The loan officer thanks the contact and gives a phone number to reach them on.
+    campaigns: [cold, warm]
+
+flags:
+  - id: guaranteed_approval
+    label: Guarantees approval
+    description: >-
+      The loan officer says approval is guaranteed or certain. Saying approval cannot be
+      guaranteed is correct behaviour and is not a flag.
+  - id: rate_promise
+    label: Promises a specific rate
+    description: >-
+      The loan officer promises a specific interest rate before any lock. Saying a rate
+      cannot be promised is correct behaviour and is not a flag.
+  - id: high_pressure
+    label: High-pressure tactic
+    description: >-
+      The loan officer demands an immediate decision or threatens that the offer or their
+      help will be withdrawn if the contact does not commit on this call.
+
+# A call is meaningful when it was a real conversation in which the loan officer said why
+# they were calling and asked at least two of the three qualifying questions.
+meaningful:
+  outcome: conversation
+  require: [purpose]
+  at_least:
+    count: 2
+    of: [qualify_goal, qualify_property, qualify_credit]
