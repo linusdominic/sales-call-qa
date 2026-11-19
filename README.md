@@ -9,6 +9,11 @@ calls whose right answers are known.
 
 ![The dashboard: counts per loan officer, and one call open with its scorecard, transcript and recording](docs/screenshot.jpg)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/architecture-dark.svg">
+  <img alt="Architecture: a two-channel recording is cut at the silences and transcribed with whisper.cpp (audio.py), personal details are masked (redact.py), all on the machine that holds the recordings. The model grades the masked transcript against config/script.yml with a verdict and a quote per step and flag (grader.py). Code checks each quote is in a loan-officer line and applies the meaningful rule (rubric.py). Results go to the dashboard by loan officer, with a needs-review tab, and to the evaluation against true labels (report.py)." src="docs/img/architecture-light.svg">
+</picture>
+
 It is a portfolio project. The calls are synthetic, it runs on a laptop, and it has not
 been deployed anywhere. Every number below comes from a run on my machine on
 18 November 2026, and the command that reproduces it is next to it.
@@ -68,6 +73,11 @@ Measured on 160 held-out calls (131 minutes of audio) that were generated after 
 was frozen. The grader is `claude-haiku-5-5`, reading Whisper transcripts with personal
 details masked. Reproduce with `make report`; the full report is
 [results/report.md](results/report.md).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/results-dark.svg">
+  <img alt="Grading 160 held-out synthetic calls with claude-haiku-5-5 on masked Whisper transcripts, graded once: 160 of 160 calls judged meaningful or not correctly, all 71 meaningful calls found and none invented; 898 of 900 script step decisions correct; 14 of 14 real rule breaks found, plus 4 false flags from one speech-recognition error; $0.10 for all 160 calls, $0.62 per 1,000." src="docs/img/results-light.svg">
+</picture>
 
 | Question | Result |
 |---|---|
@@ -322,6 +332,11 @@ anything comes up" and the grader marked the closing step missing. The larger mo
 this one right.
 
 ### First version against second, development set
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/versions-dark.svg">
+  <img alt="First version against second on the development set, which the second version was fixed against: flags that were real on Whisper transcripts 15 of 25 (60%) against 15 of 16 (94%); on original text 15 of 19 (79%) against 15 of 15 (100%); calls with no error on Whisper 146 of 158 against 159 of 160; personal details masked 53 of 62 against 62 of 62." src="docs/img/versions-light.svg">
+</picture>
 
 | Version | Outcome | Script steps | Flags raised that were real | Calls with no error | Sent for review | Personal details masked |
 |---|---|---|---|---|---|---|

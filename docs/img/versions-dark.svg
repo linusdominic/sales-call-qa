@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="335" viewBox="0 0 860 335" role="img" aria-label="First version against second, development set">
+  <title>First version against second, development set</title>
+  <rect x="0.5" y="0.5" width="859" height="334" rx="12" fill="#0d1117" stroke="#30363d"/>
+  <text x="28.0" y="40.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#f0f6fc" text-anchor="start">First version against second, development set</text>
+  <text x="28.0" y="60.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">The second version was fixed against these calls, so its figures here are optimistic.</text>
+  <rect x="28.0" y="76.0" width="12" height="12" rx="3" fill="#3987e5"/>
+  <text x="46.0" y="86.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">First version</text>
+  <rect x="154.3" y="76.0" width="12" height="12" rx="3" fill="#d95926"/>
+  <text x="172.3" y="86.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">Second version</text>
+  <text x="246.2" y="127.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0f6fc" text-anchor="end">Flags that were real, Whisper</text>
+  <path d="M260.2,108.0 H537.5 Q541.5,108.0 541.5,112.0 V118.0 Q541.5,122.0 537.5,122.0 H260.2 Z" fill="#3987e5"/>
+  <text x="549.5" y="119.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">15 of 25 (60%)</text>
+  <path d="M260.2,124.0 H696.0 Q700.0,124.0 700.0,128.0 V134.0 Q700.0,138.0 696.0,138.0 H260.2 Z" fill="#d95926"/>
+  <text x="708.0" y="135.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">15 of 16 (94%)</text>
+  <text x="246.2" y="175.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0f6fc" text-anchor="end">Flags that were real, original text</text>
+  <path d="M260.2,156.0 H626.2 Q630.2,156.0 630.2,160.0 V166.0 Q630.2,170.0 626.2,170.0 H260.2 Z" fill="#3987e5"/>
+  <text x="638.2" y="167.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">15 of 19 (79%)</text>
+  <path d="M260.2,172.0 H725.1 Q729.1,172.0 729.1,176.0 V182.0 Q729.1,186.0 725.1,186.0 H260.2 Z" fill="#d95926"/>
+  <text x="737.1" y="183.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">15 of 15 (100%)</text>
+  <text x="246.2" y="223.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0f6fc" text-anchor="end">Calls with no error, Whisper</text>
+  <path d="M260.2,204.0 H689.4 Q693.4,204.0 693.4,208.0 V214.0 Q693.4,218.0 689.4,218.0 H260.2 Z" fill="#3987e5"/>
+  <text x="701.4" y="215.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">146 of 158</text>
+  <path d="M260.2,220.0 H722.3 Q726.3,220.0 726.3,224.0 V230.0 Q726.3,234.0 722.3,234.0 H260.2 Z" fill="#d95926"/>
+  <text x="734.3" y="231.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">159 of 160</text>
+  <text x="246.2" y="271.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0f6fc" text-anchor="end">Personal details masked, Whisper</text>
+  <path d="M260.2,252.0 H657.1 Q661.1,252.0 661.1,256.0 V262.0 Q661.1,266.0 657.1,266.0 H260.2 Z" fill="#3987e5"/>
+  <text x="669.1" y="263.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">53 of 62</text>
+  <path d="M260.2,268.0 H725.1 Q729.1,268.0 729.1,272.0 V278.0 Q729.1,282.0 725.1,282.0 H260.2 Z" fill="#d95926"/>
+  <text x="737.1" y="279.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">62 of 62</text>
+  <line x1="260.2" y1="102.0" x2="260.2" y2="288.0" stroke="#3d444d"/>
+  <text x="28.0" y="313.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#757e8a" text-anchor="start">Source: results/dev/first-version/report.md and results/report.md (development set), claude-haiku-5-5, one run each.</text>
+</svg>
