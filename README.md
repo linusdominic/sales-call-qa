@@ -137,7 +137,7 @@ Without audio tools or an API key, using the transcripts and scorecards in the r
 ```bash
 uv sync
 uv run pytest                 # 86 tests, no audio, network or key needed
-uv run callqa evaluate        # rebuilds results/report.md from the committed files
+make report                   # rebuilds results/report.md from the committed files
 uv run callqa serve           # the dashboard, on http://localhost:8020
 ```
 
